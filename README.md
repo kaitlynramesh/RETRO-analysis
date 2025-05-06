@@ -1,2 +1,2 @@
-# RETRO-data
-Public repository containing all data files used for RETRO vignettes and results.
+# RETRO-analysis
+Public repository containing all data files and code used for testing RETRO.
