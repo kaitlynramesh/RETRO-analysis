@@ -105,7 +105,7 @@ load(gzcon(url(cycle_scores)))
 
 boxplot_scoring(retro_obj)
 
-retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
+retro_obj <- get_num_lineages(retro_obj, percent=0.05, cutoff=0.8) # top MST 
 retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
