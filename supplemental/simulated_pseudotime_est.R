@@ -1,8 +1,5 @@
 # Inferring pseudotime from ensemble MST scores from all SIMULATED datasets
 
-library(RETRO)
-library(ggplot2)
-
 # load datasets
 bif_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/synthetic/scd_bifurcation.rds"
 tree_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/synthetic/scd_tree.rds"
