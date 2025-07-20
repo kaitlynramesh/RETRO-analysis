@@ -1,4 +1,4 @@
-# Analysis of ensemble scored MSTs for simulated datasets to infer pseudotime
+# Inferring pseudotime from ensemble MST scores from all SIMULATED datasets
 
 library(RETRO)
 library(ggplot2)
@@ -25,7 +25,7 @@ load(gzcon(url(bif_scores)))
 boxplot_scoring(retro_obj)
 
 retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
-retro_obj <- get_bezier_curve(retro_obj, extension=2) # spline fitting
+retro_obj <- get_bezier_curve(retro_obj, extension=0) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
@@ -65,7 +65,7 @@ load(gzcon(url(tree_scores)))
 boxplot_scoring(retro_obj)
 
 retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
-retro_obj <- get_bezier_curve(retro_obj, extension=2) # spline fitting
+retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
@@ -106,7 +106,7 @@ load(gzcon(url(cycle_scores)))
 boxplot_scoring(retro_obj)
 
 retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
-retro_obj <- get_bezier_curve(retro_obj, extension=2) # spline fitting
+retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
@@ -146,7 +146,7 @@ load(gzcon(url(twocycle_scores)))
 boxplot_scoring(retro_obj)
 
 retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
-retro_obj <- get_bezier_curve(retro_obj, extension=2) # spline fitting
+retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
@@ -186,7 +186,7 @@ load(gzcon(url(multicycle_scores)))
 boxplot_scoring(retro_obj)
 
 retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
-retro_obj <- get_bezier_curve(retro_obj, extension=2) # spline fitting
+retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
