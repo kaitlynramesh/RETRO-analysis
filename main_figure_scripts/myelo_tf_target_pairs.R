@@ -1,0 +1,345 @@
+# Figure 4E
+
+library(SingleCellExperiment)
+library(NetAct)
+data(hDB) # TF/target database
+
+# Turn in tibble object for PseudotimeDE analysis
+preproc_data <- function(data, pseudotime, lineage) {
+  
+  exprs = scd_myelo@assayData[["exprs"]]
+  umap = scd_myelo@experimentData@other[["UMAP"]]
+  time = scd_myelo@phenoData@data[["time"]]
+  cell_type = scd_myelo@phenoData@data[["cell_type"]]
+  
+  # Subset data according to one lineage
+  x <- exprs[,lineage]
+  x_time <- time[lineage]
+  x_dim <- umap[lineage,]
+  x_celltypes <- cell_type[lineage]
+  p <- as.numeric(pseudotime)[lineage] # already scaled to real time
+  
+  # Convert eset object to SCE for PseudotimeDE
+  data_sce <- SingleCellExperiment(as.matrix(x))
+  data_sce@colData@listData[["cell_labels"]] <- x_celltypes
+  data_sce@colData@listData[["time"]] <- x_time
+  
+  reducedDims(data_sce) <- list(UMAP=x_dim)
+  assayNames(data_sce) <- 'logcounts'
+  
+  ## Number of subsamples
+  n = 20
+  
+  index <- mclapply(seq_len(n), function(x) {
+    sample(x = c(1:dim(data_sce)[2]), size = 0.8*dim(data_sce)[2], replace = FALSE)
+  })
+  
+  ori_tbl <- tibble(cell = colnames(data_sce), pseudotime = p)
+  sub_tbl <- lapply(index, function(x) {
+    sce <- data_sce[,x]
+    mat <- tibble(cell = colnames(sce), pseudotime = p[x])
+    return(mat)
+  })
+  
+  pseudotime_de_table <- list("sce"=data_sce, "ori"=ori_tbl, "sub"=sub_tbl, "p"=pseudotime)
+  return(pseudotime_de_table)
+}
+
+# Get tf-target pairs from hDB database that are ALSO in data
+obtain_tf_target_pairs <- function(scdata, DB, n=100) {
+  
+  x = scd_myelo@assayData[["exprs"]] # data
+  tfs = names(DB)
+  targets = unique(unlist(DB, use.names = FALSE))
+  tfs = tfs[which(tfs %in% rownames(x))]
+  targets = targets[which(targets %in% rownames(x))]
+  
+  x_tfs = x[which(rownames(x) %in% tfs),] # obtain matrix only w/ TFs
+  x_targets = x[which(rownames(x) %in% targets),] # obtain matrix only w/ targets
+  
+  vf <- Seurat::FindVariableFeatures(object = x_tfs)
+  variable_tfs = vf[order(vf$vst.variance, decreasing=TRUE),]
+  top_variable_tfs = rownames(variable_tfs)[1:n] 
+  
+  vf <- Seurat::FindVariableFeatures(object = x_targets)
+  variable_targets = vf[order(vf$vst.variance, decreasing=TRUE),]
+  top_variable_targets = rownames(variable_targets)[1:n] 
+  
+  targets = lapply(top_variable_tfs, function(tf) { # for each tf, find corresponding targets
+    x_target = which(top_variable_targets %in% hDB[[tf]])
+    x_target = top_variable_targets[x_target]
+    return(x_target)
+  })
+  names(targets) = top_variable_tfs
+  
+  # Remove TFs that don't have variable target genes
+  rm_tf = which(unlist(lapply(targets, function(tf) isempty(tf))))
+  targets = targets[-rm_tf]
+  
+  return(targets)
+}
+
+# Apply PseudotimeDE to obtain trajectories for all genes
+run_pDE_lin <- function(all_genes, retro_tbl, l) {
+  knots  = c(5,10,25)
+  results <- PseudotimeDE::runPseudotimeDE(gene.vec = all_genes,
+                                           ori.tbl = retro_tbl[["ori"]],
+                                           sub.tbl = retro_tbl[["sub"]], ## To save time, use 100 subsamples
+                                           mat = retro_tbl[[1]], ## You can also use a matrix or SeuratObj as input
+                                           mc.cores = 4,
+                                           assay.use = "logcounts",
+                                           model = "nb", # bc log-transformed
+                                           knots=knots,
+                                           k=length(knots))
+  
+  curves <- PseudotimeDE::plotCurve(gene.vec = results$gene,
+                                    ori.tbl = retro_tbl[[2]],
+                                    assay = 'logcounts',
+                                    mat = retro_tbl[[1]],
+                                    model.fit = results$gam.fit,
+                                    ncol=5)
+  tf_target_comp = list("results" = results, "curves" = curves)
+  # save(tf_target_comp, file=paste0("~/KaitlynRRStudio/myelo7_comp_all_genes_only_", l, "_lin.rda"))
+  
+  return(tf_target_comp)
+}
+
+# List formatting for TF and corresponding target genes
+create_traj_list <- function(curves, targets) {
+  
+  # obtain pseudotime for cells in trajectory
+  pt = unlist(curves[["data"]][curves[["data"]]$gene=="FOS", 2])
+  
+  # obtain trajectory per gene
+  all_genes = unique(c(unlist(targets), names(targets))) # list of all genes
+  gene_curves <- lapply(all_genes, function(gene) {
+    curve_fitting = curves[["data"]][curves$data$gene==gene, c(2,4)] 
+    gene_traj = as.numeric(curve_fitting$fitted)
+    return(gene_traj)
+  })
+  names(gene_curves) = all_genes
+  
+  # obtain list of TF-specific trajectories
+  tf_traj <- lapply(names(targets), function(tf) {
+    x = gene_curves[[tf]][order(pt)]
+    return(x)
+  })
+  names(tf_traj) = names(targets)
+  
+  # turn into TF/target list w/ trajectories
+  target_traj <- lapply(targets, function(genes) {
+    
+    gene_traj = vector(mode="list", length=length(genes))
+    for(gene in genes) {
+      gene_traj[[which(genes %in% gene)]] = gene_curves[[gene]][order(pt)]
+    }
+    names(gene_traj) = genes
+    return(gene_traj)
+  })
+  
+  return(list("gene_curves" = gene_curves, # all gene trajectories
+              "tf_traj" = tf_traj, # tf trajectories
+              "target_traj" = target_traj, # target trajectories
+              "pt" = pt)) # pseudotime
+}
+
+# Calculate correlation between TF/target gene trajectories
+find_lag_corr <- function(targets, tf_traj, target_traj, pt, num_lags = 30) {
+  all_target_traj_corr <- lapply(seq(targets), function(i) { # each TF
+    tf = names(targets)[i] # name TF
+    target_genes = targets[[tf]] # obtain target genes
+    
+    # initialize matrix/vectors to store values
+    cor_mat = matrix(0, nrow=length(target_genes), ncol=num_lags)
+    peak_vec = seq(length(target_genes))
+    lag_vec = seq(length(target_genes))
+    
+    for(target in target_genes) { # each target 
+      
+      x = tf_traj[[tf]] # TF trajectory
+      y = target_traj[[tf]][[target]] # target trajectory
+      
+      cor_vec = seq(num_lags) # init correlation vector 
+      lags = seq(0, 1, length.out=num_lags) # lag times (≤2 days)
+      pt_sorted = sort(pt) # sorted pseudotime values corresponding to gene exprs.
+      
+      j = 1
+      all_shifts = seq(length(lags)) # initialize shifts
+      for(lag in lags) {
+        shift = which.min(abs(pt_sorted-lag)) # how many pseudotime-points over
+        all_shifts[j] = shift # store value of window shift 
+        
+        x_lag = x[1:(length(x) - shift)] # lagged TF expression
+        y_lag = y[(shift + 1):length(y)] # lagged target expression
+        
+        cor_val = cor.test(x_lag, y_lag, method="spearman", exact=F) #) # spearman correlation 
+        cor_vec[j] = as.numeric(cor_val$estimate) # correlation value
+        j = j+1
+      }
+      target_ind = which(target_genes %in% target) # index
+      
+      high_corr_shift = all_shifts[which.max(abs(cor_vec))] # which lag yields high correlation
+      high_corr_lag = lags[which.max(abs(cor_vec))]
+      
+      x_h_lag = x[1:(length(x) - high_corr_shift)] # obtain lagged TF trajectory
+      pt_lag = pt_sorted[1:(length(pt) - high_corr_shift)]  # obtained lagged pseudotime 
+      peak_time = pt_lag[which.max(x_h_lag)] # pseudotime at maximum of lagged TF traj
+      
+      cor_mat[target_ind,] = cor_vec # all correlations across lag
+      peak_vec[target_ind] = peak_time # corresponding TF peak / target
+      lag_vec[target_ind] = high_corr_lag
+    }
+    
+    rownames(cor_mat) = target_genes
+    colnames(cor_mat) = lags
+    
+    return(list("tf" = tf, 
+                "target" = as.vector(target_genes),
+                "lags" = lag_vec,
+                "cor" = cor_mat,
+                "peak_vec" = peak_vec))
+  })
+  
+  return(all_target_traj_corr)
+}
+
+# Matrix formatting for TF-target pairs, cor/sign, and peak expression
+get_tf_summary <- function(all_target_traj_corr) {
+  tf_summary = lapply(all_target_traj_corr, function(x) { # for each TF
+    
+    tf = x[["tf"]] # name TF
+    target_genes = x[["target"]] # obtain targets
+    cor_mat = as.matrix(x[["cor"]]) # correlation matrix w/ targets
+    peak_times = x[["peak_vec"]] # peak time of TF wrt target regulation
+    lag_times = x[["lags"]] # lags corresponding to max correlation
+    
+    # initialize matrix per target gene
+    tf_target_mat = matrix(NA, nrow=length(target_genes), ncol=5)
+    
+    j = 1
+    for(target in target_genes) { 
+      
+      max_cor_ind = which.max(abs(cor_mat[j,])) # index
+      
+      max_cor = cor_mat[j, max_cor_ind] # max correlation
+      peak_time = peak_times[j] # peak time of TF
+      lag_time = lag_times[j] # corresponding lag between TF/target
+      
+      tf_target_mat[j,] = c(tf, target, max_cor, lag_time, peak_time)
+      j = j+1
+    } # return max correlation (and corresponding lag) to indicate optimal TF/target relation
+    
+    return(tf_target_mat)
+  })
+  return(tf_summary)
+}
+
+# Match lag (corresponding to max correlation) to grayscale color
+get_lag_color <- function(tf_summary_mat, tf, target) {
+  all_pairs = paste(tf_summary_mat$TF, tf_summary_mat$target, sep="_")
+  gene_pair = paste(tf, target, sep="_")
+  
+  peak = tf_summary_mat$peak_time[match(gene_pair, all_pairs)] 
+  lag_value = tf_summary_mat$lag[match(gene_pair, all_pairs)] 
+  n = 1.3 - (0.3 + (1 - 0.3) * (lag_value / max(tf_summary_mat$lag))) # rescaling to avoid black hex color (1)
+  lag_color = gray(n)
+  
+  return(data.frame(gene_pair, lag_value, lag_color))
+}
+
+
+#### Load datasets and pseudotime object ####
+myelo_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/real/scd_myelo.rds"
+scd_myelo = readRDS(gzcon(url(myelo_url))) # data
+
+dir = "~/KaitlynRRStudio/RETRO-analysis/benchmark/"
+retro_pt_obj = readRDS(file=paste0(dir, "RETRO_PT_myelo.rds")) 
+pseudotime = retro_pt_obj@pseudotime
+lin_membership = retro_pt_obj@lin_membership
+
+####  Pre-process data for PseudotimeDE analysis ####
+retro_tbl_mac = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[4]]) # mac
+retro_tbl_mon = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[3]]) # mon
+retro_tbl_meg = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[1]]) # meg
+retro_tbl_mast = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[2]]) # mast
+
+# obtain TF/target gene pairs used in analysis
+targets = obtain_tf_target_pairs(scd_myelo7, hDB, n=150) # TF-target pairs
+targets[["FOS"]] = "TIMP1"
+
+#### Run PseudotimeDE analysis to get gene expression trajectories ####
+all_genes = unique(c(unlist(targets), names(targets))) 
+tf_target_comp_mac = run_pDE_lin(all_genes, retro_tbl_mac, l="mac")
+tf_target_comp_mon = run_pDE_lin(all_genes, retro_tbl_mon, l="mon")
+tf_target_comp_meg = run_pDE_lin(all_genes, retro_tbl_meg, l="meg")
+tf_target_comp_mast = run_pDE_lin(all_genes, retro_tbl_mast, l="mast")
+
+# Save intermediates and results
+dir = "~/KaitlynRRStudio/RETRO-analysis/tf_target_data/"
+save(retro_tbl_mac, file=paste0(dir, "/retro_tbl_mac.rda"))
+save(retro_tbl_mon, file=paste0(dir, "/retro_tbl_mon.rda"))
+save(retro_tbl_meg, file=paste0(dir, "/retro_tbl_meg.rda"))
+save(retro_tbl_mast, file=paste0(dir, "/retro_tbl_mast.rda"))
+
+save(tf_target_comp_mac, file=paste0(dir, "/myelo_ptde_traj_mac_lin.rda"))
+save(tf_target_comp_mon, file=paste0(dir, "/myelo_ptde_traj_mon_lin.rda"))
+save(tf_target_comp_meg, file=paste0(dir, "/myelo_ptde_traj_meg_lin.rda"))
+save(tf_target_comp_mast, file=paste0(dir, "/myelo_ptde_traj_mast_lin.rda"))
+
+
+
+#### Compute correlation between TF/each target for different lags ####
+target_traj_corr_mac = find_lag_corr(targets, 
+                                     tf_traj=traj_list_mac[["tf_traj"]],
+                                     target_traj=traj_list_mac[["target_traj"]],
+                                     pt = traj_list_mac[["pt"]],
+                                     num_lags = 15, max_lag = 2)
+
+target_traj_corr_mon = find_lag_corr(targets, 
+                                     tf_traj=traj_list_mon[["tf_traj"]],
+                                     target_traj=traj_list_mon[["target_traj"]],
+                                     pt = traj_list_mon[["pt"]],
+                                     num_lags = 15, max_lag = 2)
+
+target_traj_corr_meg = find_lag_corr(targets, 
+                                     tf_traj=traj_list_meg[["tf_traj"]],
+                                     target_traj=traj_list_meg[["target_traj"]],
+                                     pt = traj_list_meg[["pt"]],
+                                     num_lags = 15, max_lag = 2)
+
+target_traj_corr_mast = find_lag_corr(targets, 
+                                      tf_traj=traj_list_mast[["tf_traj"]],
+                                      target_traj=traj_list_mast[["target_traj"]],
+                                      pt = traj_list_mast[["pt"]],
+                                      num_lags = 15, max_lag = 2)
+
+#### Summary of TF/target pairs per lineage- TF/target/max cor/corresp. lag ####
+tf_summary_mac = get_tf_summary(target_traj_corr_mac)
+tf_summary_mon = get_tf_summary(target_traj_corr_mon)
+tf_summary_meg = get_tf_summary(target_traj_corr_meg)
+tf_summary_mast = get_tf_summary(target_traj_corr_mast)
+
+
+### <save files>
+
+
+#### Color specific to maximum lag ####
+# Mac
+get_lag_color(tf_summary_mac, "CEBPB", "ITGB2")
+get_lag_color(tf_summary_mac, "SPI1", "TYROBP")
+get_lag_color(tf_summary_mac, "JUND", "CSTA")
+# Mon
+get_lag_color(tf_summary_mon, "CEBPD", "ALOX5AP")
+get_lag_color(tf_summary_mon, "SPI1", "LSP1")
+get_lag_color(tf_summary_mon, "SPI1", "S100A9")
+# Mast
+get_lag_color(tf_summary_mast, "GATA1", "SPI1")
+get_lag_color(tf_summary_mast, "ZEB2", "VIM")
+get_lag_color(tf_summary_mast, "POU5F1", "TDGF1")
+get_lag_color(tf_summary_mast, "POU5F1", "BMP4")
+# Meg
+get_lag_color(tf_summary_meg, "FLI1", "CCND3")
+get_lag_color(tf_summary_meg, "PTTG1", "S100A4")
+get_lag_color(tf_summary_meg, "GTF2I", "HSPA5")
+
+

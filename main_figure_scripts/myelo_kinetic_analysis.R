@@ -1,10 +1,9 @@
-# Infer kinetics distinguishing between developmental trajectories in myelopoiesis   
-# Figures (??)
+# Investigate kinetics of developmental trajectories in myelopoiesis based on inferred pseudotime  
+# Figures (??) and (??)
 
 library(viridis)
 library(ggplot2)
 library(pracma)
-library(ggpubr)
 
 # Function to infer alpha (kinetic value) 
 calculate_alpha <- function(coord, pseudotime, time, radius, cyclic=FALSE) {
@@ -61,20 +60,28 @@ calculate_alpha <- function(coord, pseudotime, time, radius, cyclic=FALSE) {
   return(alpha_s)
 }
 
-# Load data
-myelo_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-data/main/real/scd_myelo.rds"
+
+#### Myelopoiesis data
+
+# load data
+myelo_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/real/scd_myelo.rds"
 scd_myelo = readRDS(gzcon(url(myelo_url)))
 
 # load pseudotime/fitting object
+dir = "~/KaitlynRRStudio/RETRO-analysis/benchmark/" ## fix this!!
+myelo_pt_obj = readRDS(file=paste0(dir, "RETRO_PT_myelo.rds"))
 
+time = myelo_pt_obj@time
+cell_type = scd_myelo@phenoData@data[["cell_type"]]
+coord = scd_myelo@experimentData@other[["UMAP"]]
+lin_membership = myelo_pt_obj@lin_membership
+pseudotime = myelo_pt_obj@pseudotime
 
-# parameters for analysis
-coord = scd_myelo7$UMAP # umap projection
 nl = 4 # num lineages
-r = 2
-kinetic_mat = matrix(nrow = nrow(coord), ncol = nl)
+r = 2 # radius to determine neighbors
+kinetic_mat = matrix(nrow = nrow(coord), ncol = nl) 
 
-for(l in seq(nl)) {
+for(l in seq(nl)) { 
   coord_subset = coord[lin_membership[[l]],]
   pt_subset = pseudotime[lin_membership[[l]]]
   
@@ -82,30 +89,17 @@ for(l in seq(nl)) {
   
   kinetic_mat[lin_membership[[l]],l] = alpha 
 }
+retro_kinetic = rowMeans(kinetic_mat, na.rm=T) # average kinetic value across lineages
 
-retro_kinetic = rowMeans(kinetic_mat, na.rm=T)
-
-cell_type = as.factor(as.character(scd_myelo7$Cell_Type))
-abbrev_celltype = c("AdM", "EmM", "HEn", "iPSC", "Mac", "Mast", "Mega", "MDP", "Mon", "MP", "NMP", "PS")
-levels(cell_type) <- abbrev_celltype # levels(cell_type)[order(abbrev_celltype)]
-
+# plotting (1) cell type and (2) kinetic changes
 colnames(coord) = c("UMAP1", "UMAP2")
-g_ct = ggplot(data=as.data.frame(coord), aes(x=UMAP1, y=UMAP2, colour=cell_type)) + 
+ggplot(data=as.data.frame(coord), aes(x=UMAP1, y=UMAP2, colour=cell_type)) + 
   geom_point() + 
   theme_bw()
-g_k = ggplot(data=as.data.frame(coord), aes(x=UMAP1, y=UMAP2, colour=retro_kinetic)) + 
+
+ggplot(data=as.data.frame(coord), aes(x=UMAP1, y=UMAP2, colour=retro_kinetic)) + 
   scale_colour_viridis(option='H') + 
   geom_point() + 
   theme_bw() + theme(legend.position = "right")
-
-ggarrange(g_ct, g_k)
-
-psupertime_density(umap, scd_myelo7$Time, pseudotime)
-
-ggplot(data=as.data.frame(umap), aes(x=UMAP1, y=UMAP2, colour=pseudotime)) + 
-  geom_point() + 
-  scale_colour_continuous(low="blue", high="orange") + 
-  theme_bw()
-
 
 

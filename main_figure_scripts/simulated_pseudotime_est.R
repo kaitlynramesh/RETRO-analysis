@@ -21,13 +21,13 @@ load(gzcon(url(bif_scores)))
 
 boxplot_scoring(retro_obj)
 
-retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
-retro_obj <- get_bezier_curve(retro_obj, extension=0) # spline fitting
+retro_obj <- get_num_lineages(retro_obj, percent=0.05, cutoff=0.8) # top MST 
+retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
 
-bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 1)
+bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 2)
 pca_x = retro_obj@coordinates
 time = as.factor(retro_obj@time)
 
@@ -61,13 +61,13 @@ load(gzcon(url(tree_scores)))
 
 boxplot_scoring(retro_obj)
 
-retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
+retro_obj <- get_num_lineages(retro_obj, percent=0.05, cutoff=0.8) # top MST 
 retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
 
-bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 1)
+bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 2)
 pca_x = retro_obj@coordinates
 time = as.factor(retro_obj@time)
 
@@ -102,13 +102,13 @@ load(gzcon(url(cycle_scores)))
 
 boxplot_scoring(retro_obj)
 
-retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
+retro_obj <- get_num_lineages(retro_obj, percent=0.05, cutoff=0.8) # top MST 
 retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
 
-bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 1)
+bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 2)
 pca_x = retro_obj@coordinates
 time = as.factor(retro_obj@time)
 
@@ -142,13 +142,13 @@ load(gzcon(url(twocycle_scores)))
 
 boxplot_scoring(retro_obj)
 
-retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
+retro_obj <- get_num_lineages(retro_obj, percent=0.05, cutoff=0.8) # top MST 
 retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
 
-bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 1)
+bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 2)
 pca_x = retro_obj@coordinates
 time = as.factor(retro_obj@time)
 
@@ -182,13 +182,13 @@ load(gzcon(url(multicycle_scores)))
 
 boxplot_scoring(retro_obj)
 
-retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
+retro_obj <- get_num_lineages(retro_obj, percent=0.05, cutoff=0.8) # top MST 
 retro_obj <- get_bezier_curve(retro_obj) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
 
-bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 1)
+bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 2)
 pca_x = retro_obj@coordinates
 time = as.factor(retro_obj@time)
 

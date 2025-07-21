@@ -1,18 +1,16 @@
-# Inferring pseudotime from ensemble MST scores from myocardial infarction dataset
+# Inferring pseudotime from ensemble MST scores from myelopoiesis dataset
 # FIGURES (??)
 
 library(RETRO)
 library(ggplot2)
 
 # load datasets
-myo_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/real/scd_myo.rds"
-scd_myo = readRDS(gzcon(url(myo_url)))
+myelo_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/real/scd_myelo.rds"
+scd_myelo = readRDS(gzcon(url(myelo_url)))
 
 # load scoring information
-myo_scores = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/benchmark/RETRO_scores_myo.rda"
-load(gzcon(url(myo_scores)))
-
-boxplot_scoring(retro_obj)
+myelo_scores = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/benchmark/RETRO_scores_myelo.rda"
+load(gzcon(url(myelo_scores)))
 
 retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
 retro_obj <- get_bezier_curve(retro_obj, extension=1) # spline fitting
@@ -20,7 +18,7 @@ retro_obj <- get_bezier_curve(retro_obj, extension=1) # spline fitting
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
 retro_pt_obj <- pseudotime_fit(retro_pt_obj) # pseudotime estimation
 
-bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 1)
+bcurves <- sapply(retro_pt_obj@RETRO_Curve, "[", 2)
 umap = retro_obj@coordinates
 time = retro_obj@time
 
@@ -41,6 +39,6 @@ ggplot(as.data.frame(umap), aes(x=UMAP2L_1, y=UMAP2L_2, colour=pseudotime)) +
   theme_bw()
 
 dir = "~/KaitlynRRStudio/RETRO-analysis/benchmark/"
-saveRDS(retro_pt_obj, file=paste0(dir, "RETRO_PT_myo.rds"))
+saveRDS(retro_pt_obj, file=paste0(dir, "RETRO_PT_myelo.rds"))
 
 
