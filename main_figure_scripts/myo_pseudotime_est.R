@@ -37,6 +37,8 @@ ggplot(as.data.frame(pca_x), aes(x=PC1, y=PC2, colour=pseudotime)) +
   geom_point(data = as.data.frame(bcurves[[1]][,1:2]), aes(x = V1, y = V2), size=0.5, colour='black') +
   theme_bw()
 
+pseudotime_density(time, pseudotime, bw=1)
+
 dir = "~/KaitlynRRStudio/RETRO-analysis/benchmark/"
 saveRDS(retro_pt_obj, file=paste0(dir, "RETRO_PT_myo.rds"))
 

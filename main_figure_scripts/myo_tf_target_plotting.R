@@ -1,4 +1,4 @@
-rm(list=ls())
+
 
 #### TF fitting and simulation functions ####
 source("~/KaitlynRRStudio/PseudotimeProject/TF_Modeling_Functions.R")
@@ -83,7 +83,8 @@ load("~/KaitlynRRStudio/RETRO-analysis/tf_target_data/myo_retro_tbl.rda")
 
 
 #### Run PseudotimeDE to get trajectories 
-gene_vec = c("Fos", "Mt1", "Nfia", "Fn1")
+gene_vec = c(c("Fos", "Egr1", "Jun", "Thra", "Nfia", "Ar", "Tgfb1", "Ctnnb1", "Tcf4", "Jund", "Zeb1"),
+             c("Mt1", "Cd9", "Cxcl1", "Col6a1", "Fn1", "Lpl", "Col1a2", "Dpep1", "Emp1", "Wisp2", "Acta2", "Mmp2", "Tagln2"))
 knots = c(5, 10, 15) 
 
 res <- PseudotimeDE::runPseudotimeDE(gene.vec = gene_vec,
@@ -151,12 +152,11 @@ g3 = ggplot(data=sim_res_3) +
 
 
 ### ORIGINAL TRAJECTORIES ####
-pseudotimeDE_genes = c("Fos", "Mt1", "Nfia", "Fn1")
-gene_class = c("TF", "target", "TF", "target")
-pseudotimeDE_curves = vector(mode="list", length=length(pseudotimeDE_genes))
-for(g in seq(pseudotimeDE_genes)) {
+gene_class = c(rep("TF", 11), rep("target", 13))
+pseudotimeDE_curves = vector(mode="list", length=length(gene_vec))
+for(g in seq(gene_vec)) {
   
-  gene = pseudotimeDE_genes[g]
+  gene = gene_vec[g]
   index = which(res$gene %in% gene) # find index of gene
   gene_curve = PseudotimeDE::plotCurve(gene.vec = gene, 
                                        ori.tbl = retro_tbl[[2]], 
@@ -169,11 +169,29 @@ for(g in seq(pseudotimeDE_genes)) {
   
   pseudotimeDE_curves[[g]] = gene_curve 
 }
-names(pseudotimeDE_curves) = pseudotimeDE_genes
+names(pseudotimeDE_curves) = gene_vec
 
-g1p = pseudotimeDE_curves[[1]] + (pseudotimeDE_curves[[2]] + labs(y=""))
-g2p = pseudotimeDE_curves[[3]] + (pseudotimeDE_curves[[4]] + labs(y=""))
+pseudotimeDE_curves[["Fos"]] + (pseudotimeDE_curves[["Mt1"]] + labs(y=""))
+pseudotimeDE_curves[["Egr1"]] + (pseudotimeDE_curves[["Cd9"]] + labs(y=""))
 
+(pseudotimeDE_curves[["Fos"]] + (pseudotimeDE_curves[["Mt1"]] + labs(y=""))) /
+   (pseudotimeDE_curves[["Jun"]] + (pseudotimeDE_curves[["Cxcl1"]] + labs(y="")))
+
+(pseudotimeDE_curves[["Jund"]] + (pseudotimeDE_curves[["Mmp2"]] + labs(y=""))) / 
+  (pseudotimeDE_curves[["Nfia"]] + (pseudotimeDE_curves[["Fn1"]] + labs(y="")))
+
+(pseudotimeDE_curves[["Tgfb1"]] + (pseudotimeDE_curves[["Col1a2"]] + labs(y=""))) /
+  (pseudotimeDE_curves[["Ctnnb1"]] + (pseudotimeDE_curves[["Dpep1"]] + labs(y="")))
+
+(pseudotimeDE_curves[["Ctnnb1"]] + (pseudotimeDE_curves[["Emp1"]] + labs(y=""))) /
+  (pseudotimeDE_curves[["Ctnnb1"]] + (pseudotimeDE_curves[["Wisp2"]] + labs(y="")))
+
+
+(pseudotimeDE_curves[["Tcf4"]] + (pseudotimeDE_curves[["Acta2"]] + labs(y=""))) /
+  (pseudotimeDE_curves[["Thra"]] + (pseudotimeDE_curves[["Col6a1"]] + labs(y="")))
+
+(pseudotimeDE_curves[["Ar"]] + (pseudotimeDE_curves[["Lpl"]] + labs(y=""))) /
+  (pseudotimeDE_curves[["Zeb1"]] + (pseudotimeDE_curves[["Tagln2"]] + labs(y="")))
 
 
 ###### ARC LENGTH TRAJECTORIES ######

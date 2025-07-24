@@ -308,7 +308,7 @@ ggarrange(m1,m2,m3,m4, ncol=4, common.legend = T, legend="right")
 
 
 
-## arc-length/time fitting plot
+#### Arc length fitting plots
 load(paste0(dir, "retro_multicyclic2b_fitting.rda"))
 f1 = fitting[[1]]
 f2 = fitting[[2]]

@@ -60,7 +60,7 @@ sce = retro_tbl[["sce"]]
 tfs = tfs[which(tfs %in% rownames(sce))]
 targets = targets[which(targets %in% rownames(sce))]
 
-x = data@assayData[["exprs"]]
+x = scd_myo@assayData[["exprs"]]
 x_tfs = x[which(rownames(x) %in% tfs),] # obtain matrix only w/ TFs
 x_targets = x[which(rownames(x) %in% targets),] # obtain matrix only w/ targets
 
@@ -112,6 +112,7 @@ save(tf_target_comp, file=paste0(dir, "/myo_ptde_traj.rda"))
 
 
 ####
+dir = "~/KaitlynRRStudio/RETRO-analysis/tf_target_data"
 
 load(paste0(dir, "/myo_retro_tbl.rda"))
 load(paste0(dir, "/myo_ptde_traj.rda"))
@@ -279,7 +280,7 @@ dim(tf_summary_mat)
 
 
 #### Histogram to see distribution of gene pair correlation against lag ####
-tf_summary_hcp_mat = tf_summary_mat[abs(tf_summary_mat$cor) > 0.8 & 
+tf_summary_hcp_mat = tf_summary_mat[abs(tf_summary_mat$cor) > 0.5 & 
                                       tf_summary_mat$pval < 0.05,]
 ggplot(data.frame(lag=tf_summary_hcp_mat$lag), aes(x=lag)) + 
   geom_histogram(alpha=1, bins=15, fill=2, col=1) + 
@@ -303,26 +304,26 @@ rownames(all_tf_target_hcp_cor) = tf_summary_hcp_mat$pair
 colnames(all_tf_target_hcp_cor) = round(as.numeric(colnames(all_tf_target_hcp_cor)), 3)
 
 # Separate pairs based on sign of interaction (MEAN value)
-neg_pairs = which(rowMeans(all_tf_target_hcp_cor) < -0.75)
-pos_pairs = which(rowMeans(all_tf_target_hcp_cor) > 0.75)
+neg_pairs = which(rowMeans(all_tf_target_hcp_cor) < -0.5)
+pos_pairs = which(rowMeans(all_tf_target_hcp_cor) > 0.5)
 
 # Color scheme
-white_to_blue <- colorRampPalette(c("#0000FF", "#8080FF", "#FFFFFF"))
+white_to_blue <- colorRampPalette(c("#FFFFFF", "#8080FF", "#0000FF"))
 white_to_red <- colorRampPalette(c("#FFFFFF", "#FF8080", "#FF0000"))
 neg_col <- white_to_blue(50)
 pos_col = white_to_red(50)
 
-Heatmap(all_tf_target_hcp_cor[neg_pairs,], name="cor", col=neg_col, column_title = "lag time", column_title_side = "bottom",
+Heatmap(abs(all_tf_target_hcp_cor[neg_pairs,]), name="cor", col=neg_col, column_title = "lag time", column_title_side = "bottom",
         cluster_columns = F, cluster_rows = T) 
-Heatmap(all_tf_target_hcp_cor[pos_pairs,], name="cor", col=pos_col, column_title = "lag time", column_title_side = "bottom", 
+Heatmap(abs(all_tf_target_hcp_cor[pos_pairs,]), name="cor", col=pos_col, column_title = "lag time", column_title_side = "bottom", 
         cluster_columns = F, cluster_rows = T, row_names_gp = grid::gpar(fontsize = 10)) 
 
 
 
 # Determine corresponding color for lag
 gene_pairs = paste(tf_summary_mat$TF, tf_summary_mat$target, sep="_")
-gene_pair_list = paste(c("Fos", "Egr1", "Jun", "Cebpb", "Nfia", "Nfia", "Sox9", "Ctnnb1", "Ctnnb1", "Ctnnb1", "Tcf4", "Jund", "Zeb1", "Ar"),
-                       c("Mt1", "Cyr61", "Cxcl1", "Crip2", "Fn1", "Col1a2", "Cdkn1a", "Dpep1", "Emp1", "Wisp2", "Id2", "Timp1", "Tagln2", "Lpl"), sep="_")
+gene_pair_list = paste(c("Fos", "Egr1", "Jun", "Thra", "Nfia", "Ar", "Tgfb1", "Ctnnb1", "Ctnnb1", "Ctnnb1", "Tcf4", "Jund", "Zeb1"),
+                        c("Mt1", "Cd9", "Cxcl1", "Col6a1", "Fn1", "Lpl", "Col1a2", "Dpep1", "Emp1", "Wisp2", "Acta2", "Mmp2", "Tagln2"), sep="_")
 peak = tf_summary_mat$peak_time[match(gene_pair_list, gene_pairs)] 
 lag_value = tf_summary_mat$lag[match(gene_pair_list, gene_pairs)] 
 n = 1.3 - (0.3 + (1 - 0.3) * (lag_value / max(lag_value))) # rescaling to avoid black hex color (1)
@@ -330,16 +331,16 @@ lag_color = gray(n)
 
 m = data.frame(cbind(gene_pair_list, peak, lag_value, lag_color))
 m[order(m$peak),]
+m[order(m$peak),]
 
+tf_summary_mat[match(gene_pair_list, gene_pairs),] 
 
-
-
-gene.vec = c("Sox9", "Cd9")
+tf_summary_mat[tf_summary_mat$TF=="Jund",]
+gene.vec = c("Egr1", "Cd9")
 plot(pt, gene_curves[[gene.vec[1]]], ylim=c(0,5),
      main= tf_summary_mat$cor[which(tf_summary_mat$TF==gene.vec[1] & tf_summary_mat$target==gene.vec[2])],
      sub= tf_summary_mat$peak_time[which(tf_summary_mat$TF==gene.vec[1] & tf_summary_mat$target==gene.vec[2])])
 points(pt, gene_curves[[gene.vec[2]]], col="red")
 legend("topright", legend = gene.vec, fill = c("black", "red"))
 
-tf_summary_mat[tf_summary_mat$TF=="Sox9",]
 
