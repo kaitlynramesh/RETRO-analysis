@@ -3,6 +3,7 @@
 library(SingleCellExperiment)
 library(NetAct)
 data(hDB) # TF/target database
+library(tibble)
 
 # Turn in tibble object for PseudotimeDE analysis
 preproc_data <- function(data, pseudotime, lineage) {

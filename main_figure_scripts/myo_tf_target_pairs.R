@@ -8,10 +8,10 @@ data(mDB) # from TRRUST TF/target database
 preproc_data <- function(data, pseudotime) {
 
   # obtain data for SCE
-  x = scd_myelo@assayData[["exprs"]]
-  x_dim = scd_myelo@experimentData@other[["UMAP"]]
-  x_time = scd_myelo@phenoData@data[["time"]]
-  x_celltypes = scd_myelo@phenoData@data[["cell_type"]]
+  x = data@assayData[["exprs"]]
+  x_dim = data@experimentData@other[["PCA"]][[1]]
+  x_time = data@phenoData@data[["time"]]
+  x_celltypes = data@phenoData@data[["cell_type"]]
   p = as.numeric(pseudotime)
   
   # Convert eset object to SCE for PseudotimeDE
@@ -48,6 +48,7 @@ scd_myo = readRDS(gzcon(url(myo_url)))
 dir = "~/KaitlynRRStudio/RETRO-analysis/benchmark/"
 retro_pt_obj = readRDS(file=paste0(dir, "RETRO_PT_myo.rds"))
 pseudotime = retro_pt_obj@pseudotime
+time = retro_pt_obj@time
 
 #### Pre-process data for PseudotimeDE analysis ####
 retro_tbl = preproc_data(scd_myo, pseudotime)
@@ -59,7 +60,7 @@ sce = retro_tbl[["sce"]]
 tfs = tfs[which(tfs %in% rownames(sce))]
 targets = targets[which(targets %in% rownames(sce))]
 
-x = scd_myelo@assayData[["exprs"]]
+x = data@assayData[["exprs"]]
 x_tfs = x[which(rownames(x) %in% tfs),] # obtain matrix only w/ TFs
 x_targets = x[which(rownames(x) %in% targets),] # obtain matrix only w/ targets
 
@@ -105,10 +106,15 @@ curves <- PseudotimeDE::plotCurve(gene.vec = results$gene,
 tf_target_comp = list("results" = results, "curves" = curves)
 
 # Save results
-dir = "~/KaitlynRRStudio/RETRO-analysis/tf_target_data/"
-save(retro_tbl, paste0(dir, "/myo_retro_tbl.rda"))
-save(tf_target_comp, paste0(dir, "/myo_ptde_traj.rda"))
+dir = "~/KaitlynRRStudio/RETRO-analysis/tf_target_data"
+save(retro_tbl, file=paste0(dir, "/myo_retro_tbl.rda"))
+save(tf_target_comp, file=paste0(dir, "/myo_ptde_traj.rda"))
 
+
+####
+
+load(paste0(dir, "/myo_retro_tbl.rda"))
+load(paste0(dir, "/myo_ptde_traj.rda"))
 
 #### Organize TF/target gene expression trajectories based on regulatory interaxn ####
 curves = tf_target_comp$curves
@@ -143,7 +149,7 @@ target_traj <- lapply(targets, function(genes) {
 
 
 #### Calculate max correlation and lag between TF/target gene trajectories ####
-num_lags = 15
+num_lags = 20
 max_lag = 2
 max_lag_for_filtering = 3
 all_target_traj_corr <- lapply(seq(targets), function(i) {
@@ -273,7 +279,8 @@ dim(tf_summary_mat)
 
 
 #### Histogram to see distribution of gene pair correlation against lag ####
-tf_summary_hcp_mat = tf_summary_mat[abs(tf_summary_mat$cor) > 0.8,]
+tf_summary_hcp_mat = tf_summary_mat[abs(tf_summary_mat$cor) > 0.8 & 
+                                      tf_summary_mat$pval < 0.05,]
 ggplot(data.frame(lag=tf_summary_hcp_mat$lag), aes(x=lag)) + 
   geom_histogram(alpha=1, bins=15, fill=2, col=1) + 
   labs(title = "Histogram of Lags (d0-d2)")
@@ -295,9 +302,9 @@ all_tf_target_hcp_cor = tf_target_cor_mat[hcp_index,]
 rownames(all_tf_target_hcp_cor) = tf_summary_hcp_mat$pair
 colnames(all_tf_target_hcp_cor) = round(as.numeric(colnames(all_tf_target_hcp_cor)), 3)
 
-# Separate pairs based on sign of interaction
-neg_pairs = which(rowMeans(all_tf_target_hcp_cor) < -0.8)
-pos_pairs = which(rowMeans(all_tf_target_hcp_cor) > 0.8)
+# Separate pairs based on sign of interaction (MEAN value)
+neg_pairs = which(rowMeans(all_tf_target_hcp_cor) < -0.75)
+pos_pairs = which(rowMeans(all_tf_target_hcp_cor) > 0.75)
 
 # Color scheme
 white_to_blue <- colorRampPalette(c("#0000FF", "#8080FF", "#FFFFFF"))
@@ -308,7 +315,7 @@ pos_col = white_to_red(50)
 Heatmap(all_tf_target_hcp_cor[neg_pairs,], name="cor", col=neg_col, column_title = "lag time", column_title_side = "bottom",
         cluster_columns = F, cluster_rows = T) 
 Heatmap(all_tf_target_hcp_cor[pos_pairs,], name="cor", col=pos_col, column_title = "lag time", column_title_side = "bottom", 
-        cluster_columns = F, cluster_rows = T, row_names_gp = grid::gpar(fontsize = 6)) 
+        cluster_columns = F, cluster_rows = T, row_names_gp = grid::gpar(fontsize = 10)) 
 
 
 
@@ -325,4 +332,14 @@ m = data.frame(cbind(gene_pair_list, peak, lag_value, lag_color))
 m[order(m$peak),]
 
 
+
+
+gene.vec = c("Sox9", "Cd9")
+plot(pt, gene_curves[[gene.vec[1]]], ylim=c(0,5),
+     main= tf_summary_mat$cor[which(tf_summary_mat$TF==gene.vec[1] & tf_summary_mat$target==gene.vec[2])],
+     sub= tf_summary_mat$peak_time[which(tf_summary_mat$TF==gene.vec[1] & tf_summary_mat$target==gene.vec[2])])
+points(pt, gene_curves[[gene.vec[2]]], col="red")
+legend("topright", legend = gene.vec, fill = c("black", "red"))
+
+tf_summary_mat[tf_summary_mat$TF=="Sox9",]
 

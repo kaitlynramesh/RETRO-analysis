@@ -12,7 +12,7 @@ scd_myelo = readRDS(gzcon(url(myelo_url)))
 myelo_scores = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/benchmark/RETRO_scores_myelo.rda"
 load(gzcon(url(myelo_scores)))
 
-retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.8) # top MST 
+retro_obj <- get_num_lineages(retro_obj, percent=0.1, cutoff=0.5) # top MST 
 retro_obj <- get_bezier_curve(retro_obj, extension=1) # spline fitting
 
 retro_pt_obj <- get_mapped_cells(retro_obj) # update lineage information
