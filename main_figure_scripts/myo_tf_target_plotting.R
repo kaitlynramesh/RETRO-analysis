@@ -111,7 +111,7 @@ curves
 
 gene_pair_1 = c("Fos", "Mt1") 
 init_param_1 = c(g0=0.3, lam=90, k=0.8, th=2.7, n=8)
-sim_res_1 = fitting_gene_pair(gene_pair_1, curves, init_param_1, lag=2,
+sim_res_1 = fitting_gene_pair(gene_pair_1, curves, init_param_1, lag=0,
                               upper_bounds = c(100,100,1,5,5))
 # plotting
 g1 = ggplot(data=sim_res_1) +  
@@ -131,18 +131,19 @@ g1 = ggplot(data=sim_res_1) +
 
 
 gene_pair_2 = c("Nfia", "Fn1")
-init_param_2 = c(g0=6, lam=0.06, k=2, n=2.5, th=.5)
-sim_res_2 = fitting_gene_pair(gene_pair_2, curves, init_param_2, lag=0)
+init_param_2 = c(g0=0.304515, lam=201, k=4.72708, n=9.54024, th=1.30692)
+sim_res_2 = fitting_gene_pair(gene_pair_2, curves, init_param_2, lag=0,
+                              upper_bounds = c(500,500,5,10,5))
 
-g3 = ggplot(data=sim_res_3) +  
-  geom_line(aes(x=pseudotime_tf, y=tf, color = gene_pair_3[1]), lwd=0.75) +
-  geom_line(aes(x=pseudotime_target, y=target, color = gene_pair_3[2]), lwd=0.75) + 
-  geom_line(aes(x=pseudotime_tf, y=simulation, color = paste0(gene_pair_3[2], " (sim)")), lwd=0.75) +
+g3 = ggplot(data=sim_res_2) +  
+  geom_line(aes(x=pseudotime_tf, y=tf, color = gene_pair_2[1]), lwd=0.75) +
+  geom_line(aes(x=pseudotime_target, y=target, color = gene_pair_2[2]), lwd=0.75) + 
+  geom_line(aes(x=pseudotime_tf, y=simulation, color = paste0(gene_pair_2[2], " (sim)")), lwd=0.75) +
   scale_color_manual(
     name = "gene",
     values = setNames(
       c("#E64B35", "#95A3F3", "#0D1B6A"),
-      c(gene_pair_3[1], gene_pair_3[2], paste0(gene_pair_3[2], " (sim)"))
+      c(gene_pair_2[1], gene_pair_2[2], paste0(gene_pair_2[2], " (sim)"))
     )
   ) + theme_bw() + 
   ylab('log10(counts+1)') + 

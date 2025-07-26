@@ -38,6 +38,8 @@ ggplot(as.data.frame(umap), aes(x=UMAP2L_1, y=UMAP2L_2, colour=pseudotime)) +
   geom_point(data = as.data.frame(bcurves[[4]][,1:2]), aes(x = V1, y = V2), size=0.5, colour='black') +
   theme_bw()
 
+pseudotime_density(time, pseudotime)
+
 dir = "~/KaitlynRRStudio/RETRO-analysis/benchmark/"
 saveRDS(retro_pt_obj, file=paste0(dir, "RETRO_PT_myelo.rds"))
 

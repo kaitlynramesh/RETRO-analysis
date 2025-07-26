@@ -259,13 +259,13 @@ pseudotime = retro_pt_obj@pseudotime
 lin_membership = retro_pt_obj@lin_membership
 
 ####  Pre-process data for PseudotimeDE analysis ####
-retro_tbl_mac = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[4]]) # mac
-retro_tbl_mon = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[3]]) # mon
-retro_tbl_meg = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[1]]) # meg
-retro_tbl_mast = preproc_data(scd_myelo7, pseudotime, lineage=lin_membership[[2]]) # mast
+retro_tbl_mac = preproc_data(scd_myelo, pseudotime, lineage=lin_membership[[4]]) # mac
+retro_tbl_mon = preproc_data(scd_myelo, pseudotime, lineage=lin_membership[[3]]) # mon
+retro_tbl_meg = preproc_data(scd_myelo, pseudotime, lineage=lin_membership[[1]]) # meg
+retro_tbl_mast = preproc_data(scd_myelo, pseudotime, lineage=lin_membership[[2]]) # mast
 
 # obtain TF/target gene pairs used in analysis
-targets = obtain_tf_target_pairs(scd_myelo7, hDB, n=150) # TF-target pairs
+targets = obtain_tf_target_pairs(scd_myelo, hDB, n=150) # TF-target pairs
 targets[["FOS"]] = "TIMP1"
 
 #### Run PseudotimeDE analysis to get gene expression trajectories ####
