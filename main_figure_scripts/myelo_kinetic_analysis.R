@@ -105,3 +105,6 @@ ggplot(data=as.data.frame(coord), aes(x=UMAP1, y=UMAP2, colour=retro_kinetic)) +
 ggplot(data=as.data.frame(coord), aes(x=UMAP1, y=UMAP2, colour=cell_type)) + 
   geom_point() + 
   theme_bw()
+
+
+

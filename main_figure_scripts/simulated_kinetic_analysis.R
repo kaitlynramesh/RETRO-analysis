@@ -4,9 +4,11 @@ library(ggplot2)
 library(pracma)
 
 # Function to infer alpha (kinetic value) 
-calculate_alpha <- function(coord, pseudotime, time, radius, cyclic=FALSE) {
+calculate_alpha <- function(coord, pseudotime, time, rad_per, cyclic=FALSE, filt=FALSE) {
   
   m <- as.matrix(dist(coord)) # gene exprs. dist matrix
+  radius = rad_per * max(m)
+  print(radius)
   
   t = unique(time)[-c(1,length(unique(time)))] 
   breaks = sort(unique(c(min(pseudotime), t, max(pseudotime))))
@@ -14,9 +16,11 @@ calculate_alpha <- function(coord, pseudotime, time, radius, cyclic=FALSE) {
   bins = cut(pseudotime, breaks=breaks, labels=seq(length(breaks)-1))
   bins = as.numeric(bins)
   
-  coord_neighbors = vector(mode="list", length=nrow(coord))
+  neighbor_index = vector(mode="list", length=nrow(coord))
+  alpha_values = seq(nrow(coord))
+  delta_p_values = vector(mode="list", length=nrow(coord))
   
-  model <- lapply(1:nrow(coord), function(i) { 
+  for(i in 1:nrow(coord)) {
     # Identifying neighbors for cell-i
     index <- which(m[,i] < radius, arr.ind=T) 
     
@@ -28,6 +32,7 @@ calculate_alpha <- function(coord, pseudotime, time, radius, cyclic=FALSE) {
       }
     }
     neighbors <- coord[index,]
+    neighbor_index[[i]] = index # save neighbors for smoothing step
     
     X <- coord[i,] - neighbors # gene exprs differences
     Xt <- t(X) # transposed
@@ -40,22 +45,23 @@ calculate_alpha <- function(coord, pseudotime, time, radius, cyclic=FALSE) {
     
     Xprod <- Xinv %*% Xt
     alpha <- Xprod %*% (pseudotime[i]-pseudotime[index]) # time differences
-    alpha <- 1/norm(alpha, type='2')
-    return(list("alpha" = alpha, "neighbors" = index))
-  })
-  
-  alpha = sapply(model, "[[", 1)
-  coord_neighbors = lapply(model, "[[", 2)
+    alpha_values[i] <- 1/norm(alpha, type='2') # save "cell-speed" 
+    
+    # To check linear fitting
+    delta_p = pseudotime[i]-pseudotime[index] # actual ∆p
+    delta_p_pred <- X %*% alpha # predicted ∆p
+    delta_p_values[[i]] = list(delta_p_pred, delta_p) # save ∆p values
+  }
   
   # Determined smoothed alpha values for each neighborhood
-  alpha_s <- lapply(1:length(alpha), function(i) { 
-    n = unlist(coord_neighbors[[i]])
-    mean_alpha <- mean(alpha[n])
+  alpha_s <- lapply(1:length(alpha_values), function(i) { 
+    n = unlist(neighbor_index[[i]])
+    mean_alpha <- mean(alpha_values[n])
     return(mean_alpha)
   })
-  
   alpha_s <- log(unlist(alpha_s))
-  return(alpha_s)
+
+  return(list("alpha" = alpha_s, "delta_p" = delta_p_values))
 }
 
 scale_time <- function(time, pseudotime) {
@@ -66,12 +72,37 @@ scale_time <- function(time, pseudotime) {
   return(scaled_pt)
 }
 
+filter_by_cor <- function(delta_p_values, cutoff) {
+  # get correlation
+  cor = lapply(delta_p_values, function(x) {
+    pred = as.numeric(x[[1]])
+    obs = as.numeric(x[[2]])
+    cor = cor.test(pred, obs)
+    return(cor$estimate)})
+  cor = as.numeric(cor)
+  
+  # get mean pred/obs ∆p values per cell
+  delta_p_pred = sapply(delta_p_values, "[", 1)
+  delta_p_obs = sapply(delta_p_values, "[", 2)
+  delta_p_pred = sapply(delta_p_pred, mean) 
+  delta_p_obs = sapply(delta_p_obs, mean)
+  
+  delta_p_df = cbind("delta_p_pred"=delta_p_pred,
+                     "delta_p_obs"=delta_p_obs)
+  # ggplot(as.data.frame(delta_p_df), aes(x=delta_p_pred,y=delta_p_obs, colour=cor)) + 
+  #   labs(x="Mean observed ∆p", y="Mean predicted ∆p") + 
+  #   geom_point()
+  
+  keep_cells = which(cor > cutoff)
+  return(keep_cells)
+}
+
 
 
 ##### Load data #####
 
 bif_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/synthetic/scd_bifurcation.rds"
-twocycles_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/synthetic/scd_cycle.rds"
+twocycles_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/synthetic/scd_twocycles.rds"
 multicycle_url = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/synthetic/scd_multicycles.rds"
 
 scd_bifurcation = readRDS(gzcon(url(bif_url)))
@@ -97,38 +128,49 @@ load(paste0(dir, "scTDA_bifurcation_pseudotime.rda"))
 nodeCoord = sctda_list$nodeCoord # 
 nodeCoord = nodeCoord[-nrow(nodeCoord),] # remove NA coordinate
 scTDA_pt = sctda_list$scTDA[-length(sctda_list$scTDA)]
-sctime = sctda_list$sctime # sampling time at each cell 
+sctime = sctda_list$sctime[-length(sctda_list$sctime)] # sampling time at each cell 
 
-r = 10
+r = 0.1
 
-alpha_r <- calculate_alpha(coord, pseudotime, time, radius=r)
-alpha_s <- calculate_alpha(coord, slingshot_pt, time, radius=r)
-alpha_p <- calculate_alpha(coord, psupertime_pt, time, radius=r)
-alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, radius=r)
+alpha_r <- calculate_alpha(coord, pseudotime, time, rad_per=r)
+alpha_s <- calculate_alpha(coord, slingshot_pt, time, rad_per=r)
+alpha_p <- calculate_alpha(coord, psupertime_pt, time, rad_per=r)
+alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, rad_per=r)
+
+cutoff = 0.5
+r_cells = filter_by_cor(alpha_r$delta_p, cutoff)
+s_cells = filter_by_cor(alpha_s$delta_p, cutoff)
+p_cells = filter_by_cor(alpha_p$delta_p, cutoff)
+sc_cells = filter_by_cor(alpha_sc$delta_p, cutoff)
+
+alpha_r = alpha_r$alpha[r_cells]
+alpha_s = alpha_s$alpha[s_cells]
+alpha_p = alpha_p$alpha[p_cells]
+alpha_sc = alpha_sc$alpha[sc_cells]
 
 a <- min(alpha_r, alpha_p, alpha_s, alpha_sc)
 b <- max(alpha_r, alpha_p, alpha_s, alpha_sc)
 y_lim = c(a, b)
 
 # plotting alpha
-m1 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_r)) + 
+m1 <- ggplot(as.data.frame(coord[r_cells,]), aes(x = PC1, y = PC2, color = alpha_r)) + 
   geom_point() +
-  scale_colour_viridis(option='H') +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") + 
   theme_bw() 
 
-m2 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_s)) + 
+m2 <- ggplot(as.data.frame(coord[s_cells,]), aes(x = PC1, y = PC2, color = alpha_s)) + 
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") + 
   theme_bw() 
 
-m3 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_p)) + 
+m3 <- ggplot(as.data.frame(coord[p_cells,]), aes(x = PC1, y = PC2, color = alpha_p)) + 
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") + 
   theme_bw() 
 
-m4 <- ggplot(as.data.frame(nodeCoord), aes(x = PC1, y = PC2, color = alpha_sc)) +
+m4 <- ggplot(as.data.frame(nodeCoord[sc_cells,]), aes(x = PC1, y = PC2, color = alpha_sc)) +
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw()
 
 ggarrange(m1,m2,m3,m4, ncol=4, common.legend = T, legend="right")
@@ -189,36 +231,47 @@ nodeCoord = nodeCoord[-nrow(nodeCoord),] # remove NA coordinate
 scTDA_pt = sctda_list$scTDA[-length(sctda_list$scTDA)]
 sctime = sctda_list$sctime # sampling time at each cell 
 
-r = 20
+r = 0.075
 
-alpha_r <- calculate_alpha(coord, pseudotime, time, radius=r, cyclic=T)
-alpha_s <- calculate_alpha(coord, slingshot_pt, time, radius=r, cyclic=T)
-alpha_p <- calculate_alpha(coord, psupertime_pt, time, radius=r, cyclic=T)
-alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, radius=r, cyclic=T)
+alpha_r <- calculate_alpha(coord, pseudotime, time, rad_per=r, cyclic=TRUE)
+alpha_s <- calculate_alpha(coord, slingshot_pt, time, rad_per=r, cyclic=TRUE)
+alpha_p <- calculate_alpha(coord, psupertime_pt, time, rad_per=r, cyclic=TRUE)
+alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, rad_per=r, cyclic=TRUE)
+
+cutoff = 0.5
+r_cells = filter_by_cor(alpha_r$delta_p, cutoff)
+s_cells = filter_by_cor(alpha_s$delta_p, cutoff)
+p_cells = filter_by_cor(alpha_p$delta_p, cutoff)
+sc_cells = filter_by_cor(alpha_sc$delta_p, cutoff)
+
+alpha_r = alpha_r$alpha[r_cells]
+alpha_s = alpha_s$alpha[s_cells]
+alpha_p = alpha_p$alpha[p_cells]
+alpha_sc = alpha_sc$alpha[sc_cells]
 
 a <- min(alpha_r, alpha_p, alpha_s, alpha_sc)
 b <- max(alpha_r, alpha_p, alpha_s, alpha_sc)
 y_lim = c(a, b)
 
 # plotting alpha
-m1 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_r)) + 
+m1 <- ggplot(as.data.frame(coord[r_cells,]), aes(x = PC1, y = PC2, color = alpha_r)) + 
   geom_point() +
-  scale_colour_viridis(option='H') +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") + 
   theme_bw() 
 
-m2 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_s)) + 
+m2 <- ggplot(as.data.frame(coord[s_cells,]), aes(x = PC1, y = PC2, color = alpha_s)) + 
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw() 
 
-m3 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_p)) + 
+m3 <- ggplot(as.data.frame(coord[p_cells,]), aes(x = PC1, y = PC2, color = alpha_p)) + 
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw() 
 
-m4 <- ggplot(as.data.frame(nodeCoord), aes(x = PC1, y = PC2, color = alpha_sc)) +
+m4 <- ggplot(as.data.frame(nodeCoord[sc_cells,]), aes(x = PC1, y = PC2, color = alpha_sc)) +
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw()
 
 ggarrange(m1,m2,m3,m4, ncol=4, common.legend = T, legend="right")
@@ -272,36 +325,47 @@ nodeCoord = nodeCoord[-nrow(nodeCoord),] # remove NA coordinate
 scTDA_pt = sctda_list$scTDA[-length(sctda_list$scTDA)]
 sctime = sctda_list$sctime # sampling time at each cell 
 
-r = 20
+r = 0.1
 
-alpha_r <- calculate_alpha(coord, pseudotime, time, radius=r, cyclic=T)
-alpha_s <- calculate_alpha(coord, slingshot_pt, time, radius=r, cyclic=T)
-alpha_p <- calculate_alpha(coord, psupertime_pt, time, radius=r, cyclic=T)
-alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, radius=r, cyclic=T)
+alpha_r <- calculate_alpha(coord, pseudotime, time, rad_per=r, cyclic=TRUE)
+alpha_s <- calculate_alpha(coord, slingshot_pt, time, rad_per=r, cyclic=TRUE)
+alpha_p <- calculate_alpha(coord, psupertime_pt, time, rad_per=r, cyclic=TRUE)
+alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, rad_per=r, cyclic=TRUE)
+
+cutoff = 0.5
+r_cells = filter_by_cor(alpha_r$delta_p, cutoff)
+s_cells = filter_by_cor(alpha_s$delta_p, cutoff)
+p_cells = filter_by_cor(alpha_p$delta_p, cutoff)
+sc_cells = filter_by_cor(alpha_sc$delta_p, cutoff)
+
+alpha_r = alpha_r$alpha[r_cells]
+alpha_s = alpha_s$alpha[s_cells]
+alpha_p = alpha_p$alpha[p_cells]
+alpha_sc = alpha_sc$alpha[sc_cells]
 
 a <- min(alpha_r, alpha_p, alpha_s, alpha_sc)
 b <- max(alpha_r, alpha_p, alpha_s, alpha_sc)
 y_lim = c(a, b)
 
 # plotting alpha
-m1 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_r)) + 
+m1 <- ggplot(as.data.frame(coord[r_cells,]), aes(x = PC1, y = PC2, color = alpha_r)) + 
   geom_point() +
-  scale_colour_viridis(option='H') +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw() 
 
-m2 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_s)) + 
+m2 <- ggplot(as.data.frame(coord[s_cells,]), aes(x = PC1, y = PC2, color = alpha_s)) + 
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw() 
 
-m3 <- ggplot(as.data.frame(coord), aes(x = PC1, y = PC2, color = alpha_p)) + 
+m3 <- ggplot(as.data.frame(coord[p_cells,]), aes(x = PC1, y = PC2, color = alpha_p)) + 
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw() 
 
-m4 <- ggplot(as.data.frame(nodeCoord), aes(x = PC1, y = PC2, color = alpha_sc)) +
+m4 <- ggplot(as.data.frame(nodeCoord[sc_cells,]), aes(x = PC1, y = PC2, color = alpha_sc)) +
   geom_point() +
-  scale_colour_viridis(option='H', limits=c(a,b)) +
+  scale_colour_viridis(option='H', limits=y_lim, name="alpha") +
   theme_bw()
 
 ggarrange(m1,m2,m3,m4, ncol=4, common.legend = T, legend="right")
