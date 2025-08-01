@@ -19,7 +19,7 @@ scd_multicycle = readRDS(gzcon(url(multicycle_url)))
 bif_scores = "https://raw.githubusercontent.com/kaitlynramesh/RETRO-analysis/main/benchmark/RETRO_scores_bifurcation.rda"
 load(gzcon(url(bif_scores)))
 
-boxplot_scoring(retro_obj)
+# boxplot_scoring(retro_obj)
 
 retro_obj <- get_num_lineages(retro_obj, percent=0.05, cutoff=0.8) # top MST 
 retro_obj <- get_bezier_curve(retro_obj) # spline fitting

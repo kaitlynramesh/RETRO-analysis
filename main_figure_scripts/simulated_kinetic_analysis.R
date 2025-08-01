@@ -135,8 +135,9 @@ ggarrange(m1,m2,m3,m4, ncol=4, common.legend = T, legend="right")
 
 
 ## arc-length/time fitting plot
-load(paste0(dir, "retro_bifV2b_linmem.rda"))
-load(paste0(dir, "retro_bifV2b_fitting.rda"))
+lin_membership = retro_pt_obj@lin_membership
+fitting = retro_pt_obj@arc_length
+
 f = rowMeans(do.call(cbind, fitting), na.rm=TRUE) # arc length values
 
 shared = intersect(lin_membership[[1]], lin_membership[[2]])
@@ -172,7 +173,8 @@ rm(time)
 
 # load RETRO pseudotime object
 retro_pt_obj = readRDS("~/KaitlynRRStudio/RETRO-analysis/benchmark/RETRO_PT_twocycles.rds")
-coord = scd_twocycles@experimentData@other[["PCA"]][["x"]][,1:2] # PCA values
+coord = scd_twocycles@experimentData@other[["PCA"]][["x"]] # PCA values
+coord = coord[,1:2]
 time = retro_pt_obj@time # sampling time
 pseudotime = retro_pt_obj@pseudotime # inferred pseudotime
 
@@ -189,10 +191,10 @@ sctime = sctda_list$sctime # sampling time at each cell
 
 r = 20
 
-alpha_r <- calculate_alpha(coord, pseudotime, time, radius=r)
-alpha_s <- calculate_alpha(coord, slingshot_pt, time, radius=r)
-alpha_p <- calculate_alpha(coord, psupertime_pt, time, radius=r)
-alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, radius=r)
+alpha_r <- calculate_alpha(coord, pseudotime, time, radius=r, cyclic=T)
+alpha_s <- calculate_alpha(coord, slingshot_pt, time, radius=r, cyclic=T)
+alpha_p <- calculate_alpha(coord, psupertime_pt, time, radius=r, cyclic=T)
+alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, radius=r, cyclic=T)
 
 a <- min(alpha_r, alpha_p, alpha_s, alpha_sc)
 b <- max(alpha_r, alpha_p, alpha_s, alpha_sc)
@@ -223,14 +225,13 @@ ggarrange(m1,m2,m3,m4, ncol=4, common.legend = T, legend="right")
 
 
 ## arc-length/time fitting plot
-load(paste0(dir, "retro_twocyclicV3_fitting.rda"))
-f = unlist(fitting)
+f = unlist(retro_pt_obj@arc_length)
 
-pseudotime_cycle_1 = pseudotime[time <= 9]
-pseudotime_cycle_2 = pseudotime[time > 9]
+pseudotime_cycle_1 = pseudotime[time <= 10]
+pseudotime_cycle_2 = pseudotime[time > 10]
 
-arclen_1 = f[time <= 9] / max(f[time <= 9]) 
-arclen_2 = (f[time > 9]-min(f[time>9])) / max(f[time > 9]-min(f[time>9]))
+arclen_1 = f[time <= 10] / max(f[time <= 10]) 
+arclen_2 = (f[time > 10]-min(f[time>10])) / max(f[time > 10]-min(f[time>10]))
 
 fitting_cycle_1_df = as.data.frame(cbind(pseudotime_cycle_1, arclen_1))
 fitting_cycle_2_df = as.data.frame(cbind(pseudotime_cycle_2, arclen_2))
@@ -273,10 +274,10 @@ sctime = sctda_list$sctime # sampling time at each cell
 
 r = 20
 
-alpha_r <- calculate_alpha(coord, pseudotime, time, radius=r)
-alpha_s <- calculate_alpha(coord, slingshot_pt, time, radius=r)
-alpha_p <- calculate_alpha(coord, psupertime_pt, time, radius=r)
-alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, radius=r)
+alpha_r <- calculate_alpha(coord, pseudotime, time, radius=r, cyclic=T)
+alpha_s <- calculate_alpha(coord, slingshot_pt, time, radius=r, cyclic=T)
+alpha_p <- calculate_alpha(coord, psupertime_pt, time, radius=r, cyclic=T)
+alpha_sc <- calculate_alpha(nodeCoord, scTDA_pt, sctime, radius=r, cyclic=T)
 
 a <- min(alpha_r, alpha_p, alpha_s, alpha_sc)
 b <- max(alpha_r, alpha_p, alpha_s, alpha_sc)
@@ -309,21 +310,21 @@ ggarrange(m1,m2,m3,m4, ncol=4, common.legend = T, legend="right")
 
 
 #### Arc length fitting plots
-load(paste0(dir, "retro_multicyclic2b_fitting.rda"))
+fitting = retro_pt_obj@arc_length
 f1 = fitting[[1]]
 f2 = fitting[[2]]
-f = rowMeans(do.call(rbind, fitting), na.rm=T)
+f = rowMeans(do.call(cbind, fitting), na.rm=T)
 
 pseudotime_cycle_1 = pseudotime[which(time >= 1 & time < 6)]
-pseudotime_cycle_2 = pseudotime[which(time >= 6 & time < 17)]
-pseudotime_lin_1 = pseudotime[which(time >= 17 & !is.na(fitting[[1]]))]
-pseudotime_lin_2 = pseudotime[which(time >= 17 & !is.na(fitting[[2]]))]
+pseudotime_cycle_2 = pseudotime[which(time >= 6 & time < 14)]
+pseudotime_lin_1 = pseudotime[which(time >= 14 & !is.na(fitting[[1]]))]
+pseudotime_lin_2 = pseudotime[which(time >= 14 & !is.na(fitting[[2]]))]
 
 # obtain arc length per region of trajectory
 arclen_cycle_1 = f[which(time >= 1 & time < 6)]
-arclen_cycle_2 = f[which(time >= 6 & time < 17)]
-arclen_lin_1 = f1[which(time >= 17 & !is.na(fitting[[1]]))]
-arclen_lin_2 = f2[which(time >= 17 & !is.na(fitting[[2]]))]
+arclen_cycle_2 = f[which(time >= 6 & time < 14)]
+arclen_lin_1 = f1[which(time >= 14 & !is.na(fitting[[1]]))]
+arclen_lin_2 = f2[which(time >= 14 & !is.na(fitting[[2]]))]
 
 # normalizing arc lengths 
 arclen_cycle_1 = arclen_cycle_1 / max(arclen_cycle_1) 

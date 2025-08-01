@@ -279,12 +279,14 @@ tf_summary_mat = tf_summary_mat[lag_filter,]
 dim(tf_summary_mat)
 
 
+
 #### Histogram to see distribution of gene pair correlation against lag ####
 tf_summary_hcp_mat = tf_summary_mat[abs(tf_summary_mat$cor) > 0.5 & 
                                       tf_summary_mat$pval < 0.05,]
 ggplot(data.frame(lag=tf_summary_hcp_mat$lag), aes(x=lag)) + 
   geom_histogram(alpha=1, bins=15, fill=2, col=1) + 
   labs(title = "Histogram of Lags (d0-d2)")
+save(tf_summary_hcp_mat, file=paste0(dir, "/myo_tf_summary_hcp.rda"))
 
 
 #### Visualize variation in correlation with changes in lag

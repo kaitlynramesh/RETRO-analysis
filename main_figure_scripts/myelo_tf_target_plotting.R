@@ -2,7 +2,7 @@
 # Figure 4F-I
 
 library(ggpubr) # plotting
-source("~/KaitlynRRStudio/RETRO-analysis/TF_Modeling_Functions.R")
+source("~/KaitlynRRStudio/RETRO-analysis/main_figure_scripts/tf_modeling_functions.R")
 
 # relevant functions
 fitting_gene_pair <- function(gene_pair, curves, init_param, lag=0, upper_bounds=c(100, 100, 2, 5, 10)) {
@@ -31,7 +31,7 @@ fitting_gene_pair <- function(gene_pair, curves, init_param, lag=0, upper_bounds
     t_early = t[1:(length(t) - shift)] # shifted time trajectories
     t_late = t[(shift + 1):length(t)] 
     
-    tf_vs_target = data.frame(cbind(t_early, x_lag, y_lag))
+    tf_vs_target = data.frame(cbind(t_late, x_lag, y_lag))
     
   } else {
     tf_vs_target <- data.frame(cbind(tf_fitting[order(t), ], 
@@ -60,7 +60,7 @@ fitting_gene_pair <- function(gene_pair, curves, init_param, lag=0, upper_bounds
   # Plot trajectories
   plot(t_early, tf_vs_target[,2], ylim=c(0,6), type='l', xlab='Time', ylab='Counts')
   points(t_late, tf_vs_target[,3], type='l', col='blue')
-  points(t_early, sim_target, col='red', type='l')
+  points(t_late, sim_target, col='red', type='l')
   legend('topright', c(gene_pair[1], gene_pair[2], paste0(gene_pair[2], ' (sim)')), cex=.45, 
          col=c('black', 'blue', 'red'), lty=1)
   
@@ -200,7 +200,7 @@ g1 = ggplot(data=sim_res_1) +
       c(mac_gene_vec[1], mac_gene_vec[2], paste0(mac_gene_vec[2], " (sim)"))
     )
   ) + theme_bw() + 
-  geom_vline(xintercept=33.7863443, color = "red", linetype = "dashed") + 
+  geom_vline(xintercept=31.1279, color = "red", linetype = "dashed") + 
   ylab("log(counts+1)") + 
   xlab("pseudotime") + 
   xlim(min(pseudotime), max(pseudotime)) + 
@@ -213,7 +213,7 @@ g1 = ggplot(data=sim_res_1) +
 
 # Monocyte fitting
 init_param_2 = c(g0=0.004, lam=65, k=0.3, n=10, th=0.3)
-sim_res_2 = fitting_gene_pair(mon_gene_vec, curves_3, init_param_2, lag=2, 
+sim_res_2 = fitting_gene_pair(mon_gene_vec, curves_3, init_param_2, lag=1.263158, 
                               upper_bound =c(100,100,2,10,10))
 g2 = ggplot(data=sim_res_2) +  
   geom_line(aes(x=pseudotime_tf, y=tf, color = mon_gene_vec[1]), lwd=1) +
@@ -252,7 +252,7 @@ g3 = ggplot(data=sim_res_3) +
       c(mast_gene_vec[1], mast_gene_vec[2], paste0(mast_gene_vec[2], " (sim)"))
     )
   ) + theme_bw() + 
-  geom_vline(xintercept=-0.9302, color = "red", linetype = "dashed") + 
+  geom_vline(xintercept=0.6713357, color = "red", linetype = "dashed") + 
   ylab("log(counts+1)") + 
   xlab("pseudotime") + 
   xlim(min(pseudotime), max(pseudotime)) +

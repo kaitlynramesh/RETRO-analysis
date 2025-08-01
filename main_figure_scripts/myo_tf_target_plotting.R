@@ -84,7 +84,7 @@ load("~/KaitlynRRStudio/RETRO-analysis/tf_target_data/myo_retro_tbl.rda")
 
 #### Run PseudotimeDE to get trajectories 
 gene_vec = c(c("Fos", "Egr1", "Jun", "Thra", "Nfia", "Ar", "Tgfb1", "Ctnnb1", "Tcf4", "Jund", "Zeb1"),
-             c("Mt1", "Cd9", "Cxcl1", "Col6a1", "Fn1", "Lpl", "Col1a2", "Dpep1", "Emp1", "Wisp2", "Acta2", "Mmp2", "Tagln2"))
+             c("Mt1", "Cd9", "Cxcl1", "Col6a1", "Rbp1", "Lpl", "Col1a2", "Dpep1", "Emp1", "Wisp2", "Acta2", "Mmp2", "Tagln2"))
 knots = c(5, 10, 15) 
 
 res <- PseudotimeDE::runPseudotimeDE(gene.vec = gene_vec,
@@ -109,7 +109,7 @@ curves
 
 #### Simulation process ####
 
-gene_pair_1 = c("Fos", "Mt1") 
+gene_pair_1 = c("Jun", "Cxcl1") 
 init_param_1 = c(g0=0.3, lam=90, k=0.8, th=2.7, n=8)
 sim_res_1 = fitting_gene_pair(gene_pair_1, curves, init_param_1, lag=0,
                               upper_bounds = c(100,100,1,5,5))
@@ -130,7 +130,7 @@ g1 = ggplot(data=sim_res_1) +
   guides(colour="none")
 
 
-gene_pair_2 = c("Nfia", "Fn1")
+gene_pair_2 = c("Nfia", "Rbp1")
 init_param_2 = c(g0=0.304515, lam=201, k=4.72708, n=9.54024, th=1.30692)
 sim_res_2 = fitting_gene_pair(gene_pair_2, curves, init_param_2, lag=0,
                               upper_bounds = c(500,500,5,10,5))
@@ -175,8 +175,8 @@ names(pseudotimeDE_curves) = gene_vec
 pseudotimeDE_curves[["Fos"]] + (pseudotimeDE_curves[["Mt1"]] + labs(y=""))
 pseudotimeDE_curves[["Egr1"]] + (pseudotimeDE_curves[["Cd9"]] + labs(y=""))
 
-(pseudotimeDE_curves[["Fos"]] + (pseudotimeDE_curves[["Mt1"]] + labs(y=""))) /
-   (pseudotimeDE_curves[["Jun"]] + (pseudotimeDE_curves[["Cxcl1"]] + labs(y="")))
+(pseudotimeDE_curves[["Jun"]] + (pseudotimeDE_curves[["Cxcl1"]] + labs(y=""))) /
+   (pseudotimeDE_curves[["Nfia"]] + (pseudotimeDE_curves[["Rbp1"]] + labs(y="")))
 
 (pseudotimeDE_curves[["Jund"]] + (pseudotimeDE_curves[["Mmp2"]] + labs(y=""))) / 
   (pseudotimeDE_curves[["Nfia"]] + (pseudotimeDE_curves[["Fn1"]] + labs(y="")))
